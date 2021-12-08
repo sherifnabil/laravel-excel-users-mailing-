@@ -31,6 +31,10 @@ class UserEmailsController extends Controller
             $this->sendMail($userMail, $mailObj);
         }
         $this->logFailedEmails();
+
+        return response()->json([
+            'message'   =>  'Uploaded Succefully'
+        ]);
     }
 
     private function mutateData(array $mail): array
@@ -47,7 +51,7 @@ class UserEmailsController extends Controller
         return filter_var($email, FILTER_VALIDATE_EMAIL);
     }
 
-    private function sendMail($userMail, $mailObj)
+    private function sendMail(UserEmails $userMail, array $mailObj): void
     {
         try {
             Mail::to($userMail)->send(new HelloUser($mailObj));
