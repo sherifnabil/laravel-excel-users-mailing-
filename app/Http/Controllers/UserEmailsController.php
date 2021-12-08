@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendEmail;
 use App\Mail\HelloUser;
 use App\Models\UserEmails;
 use App\Models\FailedEmail;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Requests\UserEmailRequest;
+use Illuminate\Support\Facades\Artisan;
 
 class UserEmailsController extends Controller
 {
@@ -16,15 +18,14 @@ class UserEmailsController extends Controller
     public function store(UserEmailRequest $request)
     {
         $mails = Excel::toArray(new UserEmails, request()->file('file'));
-
         $existingEmails = UserEmails::pluck('email')->toArray();
         $skippedEmails = [...$existingEmails];
 
         foreach ($mails[0] as $mail) {
-            if (!($this->validEmail($mail[2])) || in_array($mail[2], $skippedEmails)) {
+            if (!($this->validEmail($mail[1])) || in_array($mail[1], $skippedEmails)) {
                 continue;
             }
-            $skippedEmails[] = $mail[2];
+            $skippedEmails[] = $mail[1];
             $mailObj = $this->mutateData($mail);
 
             $userMail = UserEmails::create($mailObj);
@@ -41,7 +42,7 @@ class UserEmailsController extends Controller
     {
         $formatedMail = [
             'name' => $mail[0],
-            'email' => $mail[2]
+            'email' => $mail[1]
         ];
         return $formatedMail;
     }
@@ -54,7 +55,7 @@ class UserEmailsController extends Controller
     private function sendMail(UserEmails $userMail, array $mailObj): void
     {
         try {
-            Mail::to($userMail)->send(new HelloUser($mailObj));
+            SendEmail::dispatch($userMail, $mailObj);
         } catch (\Throwable $th) {
             $this->failedEmails[] = $mailObj;
         }
